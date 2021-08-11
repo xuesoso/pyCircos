@@ -30,11 +30,16 @@ class Gcircle:
         self.facecolor   = "#DDDDDD"
         self.edgecolor   = "#000000"
         self.linewidth   = 1.0
+        self.label_spacing = 0
         self.markersize  = 2.0
         self.color_cycle = 0
         self.cmap_cycle  = 0
+        self.fontsize = 12
+        self.chord_cmap = plt.get_cmap('Reds')
 
-    def add_locus(self, name, length, bottom=None, height=None, facecolor=None, edgecolor=None, linewidth=None, interspace=None, show_label=True):
+    def add_locus(self, name, length, bottom=None, height=None, facecolor=None,
+            edgecolor=None, linewidth=None, interspace=None, show_label=True,
+            label_spacing=None, chord_cmap=None, fontsize=None):
         self.locus_dict[name]             = {}
         self.locus_dict[name]["length"]   = length
         self.locus_dict[name]["features"] = []
@@ -70,6 +75,23 @@ class Gcircle:
         else:
             self.locus_dict[name]["interspace"] = interspace
 
+        if label_spacing is None:
+            self.locus_dict[name]["label_spacing"] = self.label_spacing
+        else:
+            self.locus_dict[name]["label_spacing"] = label_spacing
+
+        if chord_cmap is None:
+            self.locus_dict[name]["chord_cmap"] = self.chord_cmap
+        else:
+            if type(chord_cmap) is str:
+                self.locus_dict[name]["chord_cmap"] = plt.get_cmap(chord_cmap)
+            else:
+                self.locus_dict[name]["chord_cmap"] = chord_cmap
+
+        if fontsize is None:
+            self.locus_dict[name]["fontsize"] = self.fontsize
+        else:
+            self.locus_dict[name]["fontsize"] = fontsize
 
         sum_length       = sum(list(map(lambda x:  self.locus_dict[x]["length"], list(self.locus_dict.keys()))))
         sum_interspace   = sum(list(map(lambda x:  self.locus_dict[x]["interspace"], list(self.locus_dict.keys()))))
@@ -151,7 +173,7 @@ class Gcircle:
             s = s + self.locus_dict[key]["length"]
             sum_interspace += self.locus_dict[key]["interspace"]
 
-    def set_locus(self, figsize=(6, 6), lw=1):
+    def set_locus(self, figsize=(6, 6), lw=1, chord_vmin=0, chord_vmax=1, chord_cmap=None):
         self.figure = plt.figure(figsize=figsize)
         self.ax     = plt.subplot(111, polar=True)
         self.ax.set_theta_zero_location("N")
@@ -162,6 +184,11 @@ class Gcircle:
         self.ax.xaxis.set_ticklabels([])
         self.ax.yaxis.set_ticks([])
         self.ax.yaxis.set_ticklabels([])
+        self.norm = matplotlib.colors.Normalize(vmin=chord_vmin, vmax=chord_vmax, clip=True)
+        if chord_cmap is not None:
+            if type(chord_cmap) is str:
+                self.chord_cmap = plt.cm.get_cmap(chord_cmap)
+        self.chord_mapper = matplotlib.cm.ScalarMappable(norm=self.norm, cmap=chord_cmap)
 
         pre_e = 0
         for i, key in enumerate(self.locus_dict.keys()):
@@ -172,9 +199,11 @@ class Gcircle:
             facecolor = self.locus_dict[key]["facecolor"]
             edgecolor = self.locus_dict[key]["edgecolor"]
             linewidth = self.locus_dict[key]["linewidth"]
+            label_spacing = self.locus_dict[key]["label_spacing"]
+            fontsize = self.locus_dict[key]["fontsize"]
             self.locus_dict[key]["bar"] = self.ax.bar([pos], [height], bottom=bottom, width=width, facecolor=facecolor, linewidth=linewidth, edgecolor=edgecolor, align="edge")
             if self.locus_dict[key].get("show_label"):
-                self.ax.text(pos + width/2, bottom + height/2, key, rotation=0, ha='center', va='center')
+                self.ax.text(pos + width/2, bottom + height/2 + label_spacing, key, rotation=0, ha='center', va='center', fontsize=fontsize)
 
 
     def add_feature(self, locus_name, start, end, strand, ftype="misc_feature", qualifiers={}):
@@ -393,7 +422,8 @@ class Gcircle:
         positions = self.locus_dict[locus_name]["positions"]
         self.ax.plot(positions, [y] * len(positions), color=color, linewidth=linewidth)
 
-    def chord_plot(self, start_list, end_list,  bottom=500, center=0, color="#1F77B4", alpha=0.5):
+    def chord_plot(self, start_list, end_list, bottom=500, center=0,
+            color="#1F77B4", alpha=0.5, zorder=0):
         #start_list and end_list is composed of "locus_id", "start", "end".
         sstart = self.locus_dict[start_list[0]]["positions"][start_list[1]]
         send   = self.locus_dict[start_list[0]]["positions"][start_list[2]+1]
@@ -427,7 +457,11 @@ class Gcircle:
                         ]
             codes, verts = list(zip(*path_data))
             path  = mpath.Path(verts, codes)
-            patch = mpatches.PathPatch(path, facecolor=color, alpha=alpha, linewidth=0, zorder=0)
+            if type(color) is str:
+                patch = mpatches.PathPatch(path, facecolor=color, alpha=alpha, linewidth=0, zorder=zorder)
+            else:
+                patch = mpatches.PathPatch(path, facecolor=self.chord_mapper.to_rgba(color),
+                        alpha=alpha, linewidth=0, zorder=zorder)
             self.ax.add_patch(patch)
 
     def save(self, file_name="test", format="pdf", dpi=None):
