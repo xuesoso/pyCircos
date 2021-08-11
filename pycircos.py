@@ -60,7 +60,7 @@ class Gcircle:
         else:
             self.locus_dict[name]["edgecolor"] = edgecolor
 
-        if interspace is None:
+        if linewidth is None:
             self.locus_dict[name]["linewidth"] = self.linewidth
         else:
             self.locus_dict[name]["linewidth"] = linewidth
